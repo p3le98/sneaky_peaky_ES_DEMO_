@@ -140,7 +140,7 @@ export class DirectTransport extends EventEmitter {
 
     return {
       ...message,
-      content: Buffer.from(iv).toString('hex') + '.' + Buffer.from(ciphertext).toString('hex'),
+      content: this.arrayBufferToHex(iv) + '.' + this.arrayBufferToHex(ciphertext),
       metadata: { ...message.metadata, encrypted: true }
     };
   }
@@ -151,8 +151,8 @@ export class DirectTransport extends EventEmitter {
     }
 
     const [ivHex, ciphertextHex] = (message.content as string).split('.');
-    const iv = Buffer.from(ivHex, 'hex');
-    const ciphertext = Buffer.from(ciphertextHex, 'hex');
+    const iv = this.hexToArrayBuffer(ivHex);
+    const ciphertext = this.hexToArrayBuffer(ciphertextHex);
 
     const decrypted = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv },
@@ -165,6 +165,27 @@ export class DirectTransport extends EventEmitter {
       content: new TextDecoder().decode(decrypted),
       metadata: { ...message.metadata, encrypted: false }
     };
+  }
+  
+  /**
+   * Convert ArrayBuffer to hex string (browser-compatible)
+   */
+  private arrayBufferToHex(buffer: ArrayBuffer): string {
+    const uint8Array = new Uint8Array(buffer);
+    return Array.from(uint8Array)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  /**
+   * Convert hex string to ArrayBuffer (browser-compatible)
+   */
+  private hexToArrayBuffer(hex: string): ArrayBuffer {
+    const uint8Array = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+      uint8Array[i / 2] = parseInt(hex.substr(i, 2), 16);
+    }
+    return uint8Array.buffer;
   }
   
   /**
